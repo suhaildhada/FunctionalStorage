@@ -1,13 +1,17 @@
 package com.buuz135.functionalstorage.item;
 
 import com.buuz135.functionalstorage.block.config.FunctionalStorageConfig;
+import com.buuz135.functionalstorage.block.tile.StorageControllerTile;
 import com.buuz135.functionalstorage.item.component.SizeProvider;
 import net.minecraft.client.Minecraft;
+import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
 import net.minecraft.util.Mth;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.LevelReader;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.api.distmarker.OnlyIn;
 
@@ -18,6 +22,11 @@ public class StorageUpgradeItem extends UpgradeItem {
     public StorageUpgradeItem(StorageTier tier) {
         super(getProps(tier), Type.STORAGE);
         this.storageTier = tier;
+    }
+
+    @Override
+    public boolean doesSneakBypassUse(ItemStack stack, LevelReader level, BlockPos pos, Player player) {
+        return level.getBlockEntity(pos) instanceof StorageControllerTile<?>;
     }
 
     private static Properties getProps(StorageTier tier) {
@@ -50,13 +59,12 @@ public class StorageUpgradeItem extends UpgradeItem {
     }
 
     public enum StorageTier {
-        COPPER(1, Mth.color(204/255f, 109/255f, 81/255f)),
-        GOLD(2, Mth.color(233/255f, 177/255f, 21/255f)),
-        DIAMOND(3, Mth.color(32/255f, 197/255f, 181/255f)),
+        COPPER(1, Mth.color(204 / 255f, 109 / 255f, 81 / 255f)),
+        GOLD(2, Mth.color(233 / 255f, 177 / 255f, 21 / 255f)),
+        DIAMOND(3, Mth.color(32 / 255f, 197 / 255f, 181 / 255f)),
         NETHERITE(4, Mth.color(49, 41, 42)),
-        IRON(0, Mth.color(130/255f, 130/255f, 130/255f)),
-        MAX_STORAGE(-1, Mth.color(167/255f, 54/255f, 247/255f))
-        ;
+        IRON(0, Mth.color(130 / 255f, 130 / 255f, 130 / 255f)),
+        MAX_STORAGE(-1, Mth.color(167 / 255f, 54 / 255f, 247 / 255f));
 
         private final int level;
         private final int color;

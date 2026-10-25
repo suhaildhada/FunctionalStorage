@@ -224,6 +224,7 @@ public class FluidDrawerTile extends ControllableDrawerTile<FluidDrawerTile> {
                     this.fluidHandler.setCapacity(getTankCapacity(getStorageMultiplier()));
                     syncObject(this.fluidHandler);
                     updateComparatorOutput();
+                    markForUpdate();
                 })
                 .setSlotLimit(1);
     }

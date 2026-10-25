@@ -9,12 +9,15 @@ import com.buuz135.functionalstorage.inventory.ILockable;
 import com.buuz135.functionalstorage.item.ConfigurationToolItem;
 import com.buuz135.functionalstorage.item.FSAttachments;
 import com.buuz135.functionalstorage.item.LinkingToolItem;
+import com.buuz135.functionalstorage.item.StorageUpgradeItem;
+import com.buuz135.functionalstorage.item.UpgradeItem;
 import com.buuz135.functionalstorage.util.ConnectedDrawers;
 import com.hrznstudio.titanium.annotation.Save;
 import com.hrznstudio.titanium.block.BasicTileBlock;
 import com.hrznstudio.titanium.client.screen.addon.TextScreenAddon;
 import com.hrznstudio.titanium.component.inventory.InventoryComponent;
 import com.hrznstudio.titanium.util.TileUtil;
+import com.mojang.logging.LogUtils;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -87,6 +90,34 @@ public abstract class StorageControllerTile<T extends StorageControllerTile<T>> 
             return InteractionResult.PASS;
         if (isServer()) {
             if (playerIn.isCrouching()) {
+
+                boolean storageUpgrade = stack.getItem() instanceof StorageUpgradeItem;
+                boolean utilityUpgrade = stack.is(FunctionalStorage.VOID_UPGRADE);
+                if (hand == InteractionHand.MAIN_HAND && (storageUpgrade || utilityUpgrade)) {
+                    boolean insertedUpgrade;
+                    do {
+                        int previousCount = stack.getCount();
+                        for (Long connectedDrawer : new ArrayList<>(this.connectedDrawers.getConnectedDrawers())) {
+                            BlockEntity blockEntity = this.level.getBlockEntity(BlockPos.of(connectedDrawer));
+                            if (blockEntity instanceof ControllableDrawerTile<?> drawerTile
+                                    && !(blockEntity instanceof StorageControllerTile)
+                                    && !(blockEntity instanceof StorageControllerExtensionTile)) {
+                                if (storageUpgrade) {
+                                    drawerTile.tryInsertStorageUpgrade(playerIn, hand);
+                                } else {
+                                    drawerTile.tryInsertUtilityUpgrade(playerIn, hand);
+                                }
+                            }
+                            stack = playerIn.getItemInHand(hand);
+                            if (stack.isEmpty()) {
+                                break;
+                            }
+                        }
+                        insertedUpgrade = stack.getCount() < previousCount;
+                    } while (!stack.isEmpty() && insertedUpgrade);
+                    return InteractionResult.SUCCESS;
+                }
+
                 openGui(playerIn);
             } else {
                 playerIn.displayClientMessage(Component.translatable("gui.functionalstorage.open_gui").withStyle(ChatFormatting.GRAY), true);
@@ -209,7 +240,7 @@ public abstract class StorageControllerTile<T extends StorageControllerTile<T>> 
             if (area.contains(Vec3.atCenterOf(position)) && this.getLevel().getBlockEntity(position) instanceof ControllableDrawerTile<?> controllableDrawerTile) {
                 if (action == LinkingToolItem.ActionMode.ADD) {
                     controllableDrawerTile.setControllerPos(this.getBlockPos());
-                    if (!connectedDrawers.getConnectedDrawers().contains(position.asLong())){
+                    if (!connectedDrawers.getConnectedDrawers().contains(position.asLong())) {
                         this.connectedDrawers.getConnectedDrawers().add(position.asLong());
                         didWork = true;
                     }

@@ -77,7 +77,7 @@ public abstract class ControllableDrawerTile<T extends ControllableDrawerTile<T>
         if (getStorageSlotAmount() > 0) {
             this.addInventory((InventoryComponent<T>) this.storageUpgrades);
         }
-        if (getUtilitySlotAmount() > 0){
+        if (getUtilitySlotAmount() > 0) {
             this.addInventory((InventoryComponent<T>) (this.utilityUpgrades = new InventoryComponent<ControllableDrawerTile<T>>("utility_upgrades", 114, 70, getUtilitySlotAmount())
                             .setInputFilter((stack, integer) -> {
                                 var incompatIn = stack.get(FSAttachments.INCOMPATIBLE_UPGRADES);
@@ -94,7 +94,7 @@ public abstract class ControllableDrawerTile<T extends ControllableDrawerTile<T>
                             .setOnSlotChanged((itemStack, integer) -> {
                                 needsUpgradeCache = true;
                                 if (controllerPos != null) {
-                                    if(getLoadedBlockEntity(controllerPos) instanceof StorageControllerTile controllerTile)
+                                    if (getLoadedBlockEntity(controllerPos) instanceof StorageControllerTile controllerTile)
                                         controllerTile.getConnectedDrawers().rebuild();
                                 }
                             })
@@ -120,6 +120,7 @@ public abstract class ControllableDrawerTile<T extends ControllableDrawerTile<T>
         compoundTag.put("storageUpgrades", storageUpgrades.serializeNBT(provider));
         super.saveAdditional(compoundTag, provider);
     }
+
     @Override
     public void onLoad() {
         super.onLoad();
@@ -143,6 +144,7 @@ public abstract class ControllableDrawerTile<T extends ControllableDrawerTile<T>
             }
         }
     }
+
     @Override
     @OnlyIn(Dist.CLIENT)
     public void initClient() {
@@ -155,7 +157,7 @@ public abstract class ControllableDrawerTile<T extends ControllableDrawerTile<T>
                 }
             });
         }
-        if (getUtilitySlotAmount() > 0){
+        if (getUtilitySlotAmount() > 0) {
             addGuiAddonFactory(() -> new TextScreenAddon("gui.functionalstorage.utility", 114, 59, false, ChatFormatting.DARK_GRAY.getColor()) {
                 @Override
                 public String getText() {
@@ -174,13 +176,13 @@ public abstract class ControllableDrawerTile<T extends ControllableDrawerTile<T>
 
     @Override
     public Direction getFacingDirection() {
-        return this.level.getBlockState(this.worldPosition).hasProperty(DrawerBlock.FACING_HORIZONTAL_CUSTOM) ? (Direction)this.level.getBlockState(this.worldPosition).getValue(DrawerBlock.FACING_HORIZONTAL_CUSTOM) : (this.level.getBlockState(this.worldPosition).hasProperty(RotatableBlock.FACING_HORIZONTAL) ? (Direction)this.level.getBlockState(this.worldPosition).getValue(RotatableBlock.FACING_HORIZONTAL) : Direction.NORTH);
+        return this.level.getBlockState(this.worldPosition).hasProperty(DrawerBlock.FACING_HORIZONTAL_CUSTOM) ? (Direction) this.level.getBlockState(this.worldPosition).getValue(DrawerBlock.FACING_HORIZONTAL_CUSTOM) : (this.level.getBlockState(this.worldPosition).hasProperty(RotatableBlock.FACING_HORIZONTAL) ? (Direction) this.level.getBlockState(this.worldPosition).getValue(RotatableBlock.FACING_HORIZONTAL) : Direction.NORTH);
     }
 
     @Override
     public void serverTick(Level level, BlockPos pos, BlockState state, T blockEntity) {
         super.serverTick(level, pos, state, blockEntity);
-        if (getUtilitySlotAmount() > 0){
+        if (getUtilitySlotAmount() > 0) {
             for (int i = 0; i < this.utilityUpgrades.getSlots(); i++) {
                 ItemStack stack = this.utilityUpgrades.getStackInSlot(i);
                 if (!stack.isEmpty()) {
@@ -207,8 +209,7 @@ public abstract class ControllableDrawerTile<T extends ControllableDrawerTile<T>
         this.markForUpdate();
     }
 
-    public void clearControllerPos()
-    {
+    public void clearControllerPos() {
         this.controllerPos = null;
     }
 
@@ -282,33 +283,12 @@ public abstract class ControllableDrawerTile<T extends ControllableDrawerTile<T>
         var funcComp = stack.get(FSAttachments.FUNCTIONAL_BEHAVIOR);
 
         if (sizeComp != null || stack.is(FunctionalStorage.CREATIVE_UPGRADE.get())) {
-            InventoryComponent component = storageUpgrades;
-            for (int i = 0; i < component.getSlots(); i++) {
-                if (component.getStackInSlot(i).isEmpty() && component.isItemValid(i, stack)) {
-                    playerIn.setItemInHand(hand, component.insertItem(i, stack, false));
-                    return InteractionResult.SUCCESS;
-                }
-            }
-
-            if (sizeComp != null) {
-                for (int i = 0; i < component.getSlots(); i++) {
-                    if (!component.getStackInSlot(i).isEmpty() && component.isItemValid(i, stack) && component.getStackInSlot(i).has(sizeUpgradeComponent) && component.getStackInSlot(i).get(sizeUpgradeComponent).applyFactorModifier(1f) < sizeComp.applyFactorModifier(1f)) {
-                        ItemHandlerHelper.giveItemToPlayer(playerIn, component.getStackInSlot(i).copy());
-                        ItemStack upgradeStack = stack.copy();
-                        upgradeStack.setCount(1);
-                        component.setStackInSlot(i, upgradeStack);
-                        stack.shrink(1);
-                        return InteractionResult.SUCCESS;
-                    }
-                }
+            if (tryInsertStorageUpgrade(playerIn, hand)) {
+                return InteractionResult.SUCCESS;
             }
         } else if (funcComp != null || (stack.getItem() instanceof UpgradeItem ui && ui.getType() == UpgradeItem.Type.UTILITY)) {
-            InventoryComponent component = utilityUpgrades;
-            for (int i = 0; i < component.getSlots(); i++) {
-                if (component.getStackInSlot(i).isEmpty() && component.isItemValid(i, stack)) {
-                    playerIn.setItemInHand(hand, component.insertItem(i, stack, false));
-                    return InteractionResult.SUCCESS;
-                }
+            if (tryInsertUtilityUpgrade(playerIn, hand)) {
+                return InteractionResult.SUCCESS;
             }
         }
         if (super.onActivated(playerIn, hand, facing, hitX, hitY, hitZ) == ItemInteractionResult.SUCCESS) {
@@ -320,9 +300,56 @@ public abstract class ControllableDrawerTile<T extends ControllableDrawerTile<T>
         return InteractionResult.SUCCESS;
     }
 
+    boolean tryInsertStorageUpgrade(Player playerIn, InteractionHand hand) {
+        ItemStack stack = playerIn.getItemInHand(hand);
+        var sizeComp = stack.get(sizeUpgradeComponent);
+        if (sizeComp == null && !stack.is(FunctionalStorage.CREATIVE_UPGRADE.get())) {
+            return false;
+        }
+
+        InventoryComponent component = storageUpgrades;
+        for (int i = 0; i < component.getSlots(); i++) {
+            if (component.getStackInSlot(i).isEmpty() && component.isItemValid(i, stack)) {
+                playerIn.setItemInHand(hand, component.insertItem(i, stack, false));
+                return true;
+            }
+        }
+
+        if (sizeComp != null) {
+            for (int i = 0; i < component.getSlots(); i++) {
+                if (!component.getStackInSlot(i).isEmpty() && component.isItemValid(i, stack) && component.getStackInSlot(i).has(sizeUpgradeComponent) && component.getStackInSlot(i).get(sizeUpgradeComponent).applyFactorModifier(1f) < sizeComp.applyFactorModifier(1f)) {
+                    ItemHandlerHelper.giveItemToPlayer(playerIn, component.getStackInSlot(i).copy());
+                    ItemStack upgradeStack = stack.copy();
+                    upgradeStack.setCount(1);
+                    component.setStackInSlot(i, upgradeStack);
+                    stack.shrink(1);
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    boolean tryInsertUtilityUpgrade(Player playerIn, InteractionHand hand) {
+        ItemStack stack = playerIn.getItemInHand(hand);
+        var funcComp = stack.get(FSAttachments.FUNCTIONAL_BEHAVIOR);
+        if (funcComp == null && !(stack.getItem() instanceof UpgradeItem ui && ui.getType() == UpgradeItem.Type.UTILITY)) {
+            return false;
+        }
+
+        InventoryComponent component = utilityUpgrades;
+        for (int i = 0; i < component.getSlots(); i++) {
+            if (component.getStackInSlot(i).isEmpty() && component.isItemValid(i, stack)) {
+                playerIn.setItemInHand(hand, component.insertItem(i, stack, false));
+                return true;
+            }
+        }
+        return false;
+    }
+
     public abstract int getStorageSlotAmount();
 
-    public int getUtilitySlotAmount(){
+    public int getUtilitySlotAmount() {
         return 3;
     }
 
@@ -347,7 +374,7 @@ public abstract class ControllableDrawerTile<T extends ControllableDrawerTile<T>
             }
         }
         isVoid = false;
-        if (getUtilitySlotAmount() > 0){
+        if (getUtilitySlotAmount() > 0) {
             for (int i = 0; i < utilityUpgrades.getSlots(); i++) {
                 if (utilityUpgrades.getStackInSlot(i).getItem().equals(FunctionalStorage.VOID_UPGRADE.get())) {
                     isVoid = true;
